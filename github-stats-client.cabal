@@ -4,7 +4,6 @@ version:             0.1.0.0
 -- description:
 homepage:            https://github.com/swamp-agr/github-stats-client#readme
 license:             BSD3
-license-file:        LICENSE
 author:              Andrey Prokopenko
 maintainer:          marunarkh@gmail.com
 copyright:           2017 Andrey Prokopenko
@@ -33,6 +32,8 @@ executable github-stats-client
                      , github-stats-client
                      , yaml
                      , bytestring
+                     , wreq
+
   default-language:    Haskell2010
 
 test-suite github-stats-client-test
