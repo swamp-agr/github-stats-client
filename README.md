@@ -21,6 +21,7 @@ Otherwise, you will see following message:
   "message": "Only the first 1000 search results are available",
   "documentation_url": "https://developer.github.com/v3/search/"
 }
+```
 
 
 There are two issues:
