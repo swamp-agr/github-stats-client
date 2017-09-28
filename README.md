@@ -32,16 +32,19 @@ Request Headers
 ---------------
 
 * OAuthV2 Token could be passed in Header:
+
 ```
 Authorization: token <YOUR_TOKEN_HERE>
 ```
 
 * Acceptance of API, constant string:
+
 ```
 Accept: application/vnd.github.v3.text-match+json
 ```
 
 * Customer User-Agent. It should contain username and/or repository for contact in case of any issues:
+
 ```
 User-Agent: <YOUR_USER_AGENT>
 ```
