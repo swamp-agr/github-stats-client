@@ -21,7 +21,8 @@ library
 
   build-depends:       base >= 4.7 && < 5
                      , yaml
-
+                     , bytestring
+                     , wreq
   default-language:    Haskell2010
 
 executable github-stats-client
@@ -30,9 +31,6 @@ executable github-stats-client
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base
                      , github-stats-client
-                     , yaml
-                     , bytestring
-                     , wreq
 
   default-language:    Haskell2010
 
