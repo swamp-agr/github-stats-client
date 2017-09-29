@@ -18,11 +18,14 @@ library
                      , API
                      , Logic
                      , CLI
+                     , Utils
 
   build-depends:       base >= 4.7 && < 5
                      , yaml
                      , bytestring
                      , wreq
+                     , regex-compat
+
   default-language:    Haskell2010
 
 executable github-stats-client

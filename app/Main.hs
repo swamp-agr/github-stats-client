@@ -9,5 +9,5 @@ main :: IO ()
 main = do
     args <- getArgs
     case args of
-      (config:command:[]) -> withConfig config command
+      (command:config:[]) -> withConfig config command
       _                   -> showUsage

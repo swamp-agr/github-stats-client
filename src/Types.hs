@@ -20,3 +20,6 @@ data APICall
 
 type APIResponse = Either ErrorMessage [User]
 type ErrorMessage = ByteString
+
+defRange :: Range
+defRange = undefined
