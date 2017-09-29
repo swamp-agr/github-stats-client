@@ -1,10 +1,6 @@
 module Main where
 
-
-
-
 import System.Environment
-
 
 import Types
 import CLI
@@ -15,14 +11,3 @@ main = do
     case args of
       (config:command:[]) -> withConfig config command
       _                   -> showUsage
-
-
-
-
-
-
-
-
-
-
-
