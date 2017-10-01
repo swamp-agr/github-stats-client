@@ -7,7 +7,7 @@ license:             BSD3
 author:              Andrey Prokopenko
 maintainer:          marunarkh@gmail.com
 copyright:           2017 Andrey Prokopenko
-category:            Web
+category:            Github
 build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
@@ -22,6 +22,7 @@ library
 
   build-depends:       base >= 4.7 && < 5
                      , yaml
+                     , text
                      , bytestring
                      , wreq
                      , regex-compat

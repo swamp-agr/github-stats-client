@@ -63,8 +63,8 @@ Out of limit issue had not been tested since it will affect RateLimit.
 Calls
 -----
 
-- obtain total for period: https://api.github.com/search/users?q=location:%3E<LOCATION>+type:user+created:RANGE&sort=created&per_page=1
-- https://api.github.com/search/users?q=location:%3E<LOCATION>+type:user+created:RANGE&sort=created&per_page=100&page=N
+- obtain total for period: https://api.github.com/search/users?q=location:%3ELOCATION+type:user+created:RANGE&sort=created&per_page=1
+- https://api.github.com/search/users?q=location:%3ELOCATION+type:user+created:RANGE&sort=created&per_page=100&page=N
 - Range format for RANGE: 2006-01-01..2007-01-01 or even time included
 - page values for N: from 1 to 10
 

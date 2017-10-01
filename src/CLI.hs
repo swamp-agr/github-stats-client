@@ -21,7 +21,7 @@ parseConfig cfg = do
   t <- readFile cfg
   return $ either throw id $ decodeEither' t
 
--- | Show generic usage message.
+-- | Show generic usage message. For simplicity, only dates supported.
 showUsage :: IO ()
 showUsage = putStrLn "github-stats-client [ ALL | <RANGE> ] CONFIG\n\ne.g.\n\tgithub-stats-client ALL config.yml\n\tgithub-stats-client 2017-01-01..2017-09-01 config.yml"
 
@@ -38,8 +38,8 @@ execute settings "ALL" = do
 execute settings range =
   case validate range of
     (VALID,vrange) -> do
-      users <- getUsersFromRange settings vrange
-      printUsers users
+      gr <- getGithubResponseFromRange settings vrange
+      printUsers $ items gr 
     (INVALID,_)    -> showUsage
 
 validate :: Command -> (Validation,Range)
