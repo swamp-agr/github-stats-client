@@ -4,6 +4,7 @@
 module Types where
 
 import Control.Exception
+import Data.Monoid
 import Data.Text
 import Data.Time.Clock
 import Data.Time.Calendar
@@ -72,6 +73,11 @@ data Range =
     { startDate :: UTCTime
     , endTIme :: UTCTime
     }
+
+instance Show Range where
+  show (Range x y) = (f x) <> ".." <> (f y)
+    where f = showGregorian . utctDay
+
 data APICall
 
 type APIResponse = Either ErrorMessage GithubResponse
@@ -94,13 +100,14 @@ type ErrorMessage = ByteString
 
 defRange :: Range
 defRange = 
-  Range (toTime 2006 1 1) (toTime 20017 12 12)
+  Range defDay (toDate 20017 12 12)
 
-firstRange :: Range
-firstRange = 
-  Range (toTime 2006 1 1) (toTime 2007 1 1)
+defDay :: UTCTime
+defDay = toDate 2006 1 1
 
 defaultResponse :: GithubResponse
-defaultResponse = undefined
+defaultResponse = GithubResponse 0 False []
 
-toTime y m d = UTCTime (fromGregorian y m d) (secondsToDiffTime 0)
+toDate y m d = UTCTime (fromGregorian y m d) (secondsToDiffTime 0)
+
+type Days = Int

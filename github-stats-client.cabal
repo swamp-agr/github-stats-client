@@ -50,4 +50,4 @@ test-suite github-stats-client-test
 
 source-repository head
   type:     git
-  location: https://github.com/githubuser/simple
+  location: https://github.com/swamp-agr/github-stats-client

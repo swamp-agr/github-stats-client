@@ -79,3 +79,16 @@ So, following modules required:
 * Business Logic:
   - for applying algorythm of obtaining ranges.
   - for retrieving users list.
+
+Algorythm
+=========
+
+0. get total count of users for whole period.
+1. get total count of users for each year.
+2. get total count of users for each month for those ranges where were too many users.
+3. get total count of users for each week for those ranges where were too many users.
+4. get total count of users for each day for those ranges where were too many users.
+5. for each period iterate through the pages of each query
+
+too many = (> 1000)
+

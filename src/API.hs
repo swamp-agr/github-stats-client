@@ -2,6 +2,8 @@ module API where
 
 import Control.Exception
 import Data.ByteString (ByteString(..))
+import Data.Monoid
+import Data.Time.Clock
 import Network.Wreq
 
 import Types
@@ -10,16 +12,60 @@ import Types
 getAllRanges :: Settings -> IO [Range]
 getAllRanges settings = do
   let opts = setOpts settings
-  -- get all users amount 
-  count <- getUsersCount settings
-  -- calculate length of list for future ranges
-  let rl = (+ 1) $ truncate $ (/ 1000) $ fromIntegral count
-  -- naive approach
-  return undefined
-  
-getUsersCount settings = do
-  rs <- getGithubResponseFromRange settings defRange
+  -- get all users amount
+  today <- getCurrentTime
+  let wholeRange  = getWholeRange defDay today
+      allYearRanges  = splitRangeBy 365 wholeRange
+
+  countByYear <- callRepeatedly (getUsersCountByRange opts) allYearRanges
+  let (yearRanges, tbdYearRanges) = spanRanges countByYear
+      allMonthRanges = concat $ fmap (splitRangeBy 30) tbdYearRanges
+
+  countByMonth <- callRepeatedly (getUsersCountByRange opts) allMonthRanges
+  let (monthRanges, tbdMRanges) = spanRanges countByMonth
+      allWeekRanges = concat $ fmap (splitRangeBy 7) tbdMRanges
+
+  countByWeek <- callRepeatedly (getUsersCountByRange opts) allWeekRanges
+  let (weekRanges, tbdWRanges) = spanRanges countByWeek
+      allDayRanges = concat $ fmap (splitRangeBy 1) tbdWRanges
+
+  countByDay <- callRepeatedly (getUsersCountByRange opts) allDayRanges
+  let (dayRanges, tbdDRanges) = spanRanges countByDay
+
+  putStrLn $ showWarning tbdDRanges
+
+  return $ yearRanges ++ monthRanges ++ weekRanges ++ dayRanges
+
+getWholeRange :: UTCTime -> UTCTime -> Range
+getWholeRange = undefined
+
+splitRangeBy :: Integer -> Range -> [Range]
+splitRangeBy t rng = undefined
+
+callRepeatedly :: (a -> IO b) -> [a] -> IO [b]
+callRepeatedly f x = undefined
+
+spanRanges :: [(Range, Int)] -> ([Range], [Range])
+spanRanges x = (fmap fst $ filter ((<= 1000) . snd) x, fmap fst $ filter (not . (<= 1000) . snd) x)
+
+showWarning :: [Range] -> String
+showWarning x = undefined
+
+getAllUsersCount :: Options -> IO Int  
+getAllUsersCount opts = do
+  (rs,_) <- getCountRequest opts defRange
   return $ totalCount rs
+
+getUsersCountByRange :: Options -> Range -> IO (Range, Int)
+getUsersCountByRange opts rng = do
+  (rs,_) <- getCountRequest opts rng
+  let tc = totalCount rs
+  putStrLn $ "For Range " <> (show rng) <> " created: " <> (show tc) <> " users!"
+  return (rng, tc)
+
+getCountRequest :: Options -> Range -> IO (GithubResponse,Options)
+getCountRequest = undefined
+
 
 getGithubResponseFromRange :: Settings -> Range -> IO GithubResponse
 getGithubResponseFromRange settings range = do
