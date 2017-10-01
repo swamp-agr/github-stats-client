@@ -78,7 +78,9 @@ getUsersCountByRange opts rng = do
   return (rng, tc)
 
 getCountRequest :: Options -> Range -> IO (GithubResponse,Options)
-getCountRequest = undefined
+getCountRequest opts rng =
+  let nOpts = opts & param "per_page" .~ ["1"] & param "page" .~ ["1"]
+  in call nOpts rng 
 
 call :: Options -> Range -> IO (GithubResponse,Options)
 call opts rng = do
