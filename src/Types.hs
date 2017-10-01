@@ -19,7 +19,13 @@ data Settings =
     , ua :: Text
     , constHeader :: Text
     } deriving Generic
-instance FromJSON Settings
+instance FromJSON Settings where
+  parseJSON = withObject "Settings" $ \o -> do
+    location <- o .: "location"
+    token <- o .: "token"
+    ua <- o .: "ua"
+    constHeader <- o .: "constHeader"
+    return Settings {..}
 
 type Command = String
 

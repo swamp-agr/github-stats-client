@@ -12,6 +12,7 @@ import Data.Time.Calendar
 import Network.Wreq
 import Text.Regex
 import Data.Text (pack, unpack)
+import Data.Text.Encoding (encodeUtf8)
 
 import Types
 
@@ -92,13 +93,13 @@ call opts rng = do
        putStrLn $ "ERROR for " <> (show rng)
        return (defaultResponse, nOpts)
   
-
 getUsersByRange :: Settings -> Range -> IO [User]
 getUsersByRange settings rng = undefined
 
 setOpts :: Settings -> Options
-setOpts settings = undefined
-
-fromEither :: APIResponse -> [User]
-fromEither (Right x) = items x
-fromEither (Left _) = []
+setOpts settings = 
+  defaults & header "Authorization" .~ ["token " <> (encodeUtf8 $ token settings)]
+           & header "User-Agent" .~ [encodeUtf8 $ ua settings]
+           & param "q" .~ [ "location:" <> (location settings)
+                       <> "+type:user+created:2016-01-01..2017-01-01"]
+           & param "sort" .~ ["created"]
