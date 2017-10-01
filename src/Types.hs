@@ -114,4 +114,7 @@ defaultResponse = GithubResponse 0 False []
 
 toDate y m d = UTCTime (fromGregorian y m d) (secondsToDiffTime 0)
 
-type Days = Int
+type Days = Integer
+
+githubUrl :: String
+githubUrl = "https://api.github.com/search/users"

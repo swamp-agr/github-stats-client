@@ -92,3 +92,18 @@ Algorythm
 
 too many = (> 1000)
 
+Interaction
+-----------
+
+1. API count call
+
+1 call: Headers: token, user-agent, constant
+Params: per_page=1, page=1, q= calculated
+header in response: 
+X-RateLimit-Limit: 30
+X-RateLimit-Remaining: X
+X-RateLimit-Reset: Y
+
+many calls: before each new call calculate thread delay: 
+if X-RateLimit is equal to 30 then 60 sec / 30 = 2 sec.
+if X-RateLimit-Remaining: >0 then iterate over rest requests. Otherwise, calculate delay based on X-RateLimit-Reset and wait till limit reset.

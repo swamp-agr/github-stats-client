@@ -1,11 +1,17 @@
+{-# LANGUAGE OverloadedStrings #-}
 module API where
 
 import Control.Exception
+import Control.Lens
+import Data.Aeson
 import Data.ByteString (ByteString(..))
+import qualified Data.Map.Strict as M
 import Data.Monoid
 import Data.Time.Clock
 import Data.Time.Calendar
 import Network.Wreq
+import Text.Regex
+import Data.Text (pack, unpack)
 
 import Types
 
@@ -40,16 +46,16 @@ getAllRanges settings = do
 getWholeRange :: UTCTime -> Range
 getWholeRange t = Range defDay t
 
-splitRangeBy :: Integer -> Range -> [Range]
+splitRangeBy :: Days -> Range -> [Range]
 splitRangeBy t (Range start end) =
   let startDay = utctDay start
       endDay   = utctDay end
       days     = diffDays endDay startDay
       toRangeProto val ix = (ix * val, (ix + 1) * val - 1)
       ixs = div days t
-      protoList :: [(Integer, Integer)]
+      protoList :: [(Days, Days)]
       protoList = fmap (toRangeProto t) [0..ixs]
-      shiftRange :: Day -> (Integer,Integer) -> Range
+      shiftRange :: Day -> (Days,Days) -> Range
       shiftRange s (x,y) = Range (dayToDate $ addDays x s) (dayToDate $ addDays y s)
   in fmap (shiftRange startDay) protoList
 
@@ -72,6 +78,20 @@ getUsersCountByRange opts rng = do
 
 getCountRequest :: Options -> Range -> IO (GithubResponse,Options)
 getCountRequest = undefined
+
+call :: Options -> Range -> IO (GithubResponse,Options)
+call opts rng = do
+  let q = (M.fromList $ opts ^. params) M.! "q"
+      rx = mkRegex "([0-9]{4}-[0-9]{2}-[0-9]{2}\\.\\.[0-9]{4}-[0-9]{2}-[0-9]{2})"
+      q2 = pack $ subRegex rx (unpack q) (show rng)
+      nOpts = opts & param "q" .~ [q2]
+  resp <- try $ asJSON =<< getWith opts githubUrl
+  case resp of
+     Right result -> return (result ^. responseBody, nOpts)
+     Left (SomeException _) -> do
+       putStrLn $ "ERROR for " <> (show rng)
+       return (defaultResponse, nOpts)
+  
 
 getUsersByRange :: Settings -> Range -> IO [User]
 getUsersByRange settings rng = undefined
