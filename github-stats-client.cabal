@@ -24,6 +24,9 @@ library
                      , yaml
                      , aeson
                      , text
+                     , http-client
+                     , http-client-tls
+                     , HsOpenSSL
                      , containers
                      , lens
                      , time

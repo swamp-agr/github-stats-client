@@ -36,7 +36,7 @@ data User =
     , uid :: Integer
     , avatarUrl :: Text
     , gravatarId :: Text
-    , url :: Text
+    , url' :: Text
     , htmlUrl :: Text
     , followersUrl :: Text
     , followingUrl :: Text
@@ -58,7 +58,7 @@ instance FromJSON User where
     uid               <- o .: "id"
     avatarUrl         <- o .: "avatar_url"
     gravatarId        <- o .: "gravatar_id"
-    url               <- o .: "url"
+    url'               <- o .: "url"
     htmlUrl           <- o .: "html_url"
     followersUrl      <- o .: "followers_url"
     followingUrl      <- o .: "following_url"
@@ -122,7 +122,9 @@ toDate y m d = UTCTime (fromGregorian y m d) (secondsToDiffTime 0)
 
 type Days = Integer
 
-githubUrl :: String
+type URL = String
+
+githubUrl :: URL
 githubUrl = "https://api.github.com/search/users"
 
 data Interaction =

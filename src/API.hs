@@ -14,6 +14,9 @@ import Network.Wreq
 import Text.Regex
 import Data.Text (pack, unpack)
 import Data.Text.Encoding (encodeUtf8, decodeUtf8)
+import OpenSSL.Session (context)
+import Network.HTTP.Client.TLS
+import Network.HTTP.Client (defaultManagerSettings, managerResponseTimeout, responseTimeoutMicro)
 
 import Types
 import Utils
@@ -63,12 +66,12 @@ splitRangeBy t (Range start end) =
   in fmap (shiftRange startDay) protoList
 
 -- | iteratively make a API call for list of various inputs to produce the list of responses with HTTP interacting logic.
-callRepeatedly :: [(Range,Int)] -> Options -> [Range] -> IO [(Range,Int)]
-callRepeatedly rs opts [] = return $! rs
-callRepeatedly rs opts xs = do
-  (rng,opts2,i) <- getUsersCountByRange opts (head xs)
+callRepeatedly :: [(Range,Int)] -> (URL,Options) -> [Range] -> IO [(Range,Int)]
+callRepeatedly rs (url,opts) [] = return $! rs
+callRepeatedly rs (url,opts) xs = do
+  (rng,opts2,i) <- getUsersCountByRange (url,opts) (head xs)
   _ <- return $! ""
-  callRepeatedly (rng : rs) opts2 $! tail xs
+  callRepeatedly (rng : rs) (url,opts2) $! tail xs
   
   
   
@@ -79,25 +82,26 @@ spanRanges x = (fmap fst $ filter ((<= 1000) . snd) x, fmap fst $ filter (not . 
 showWarning :: [Range] -> String
 showWarning x = unlines . fmap ((<> " period had a massive users' load!") . show) $ x
 
-getUsersCountByRange :: Options -> Range -> IO ((Range, Int),Options,Interaction)
-getUsersCountByRange opts rng = do
-  (rs,opts2,i) <- getCountRequest opts rng
+getUsersCountByRange :: (URL,Options) -> Range -> IO ((Range, Int),Options,Interaction)
+getUsersCountByRange (url,opts) rng = do
+  (rs,opts2,i) <- getCountRequest (url,opts) rng
   let tc = totalCount rs
   putStrLn $ "For Range " <> (show rng) <> " created: " <> (show tc) <> " users!"
   return ((rng, tc),opts2,i)
 
-getCountRequest :: Options -> Range -> IO (GithubResponse,Options,Interaction)
-getCountRequest opts rng =
+getCountRequest :: (URL,Options) -> Range -> IO (GithubResponse,Options,Interaction)
+getCountRequest (url,opts) rng =
   let nOpts = opts & param "per_page" .~ ["1"] & param "page" .~ ["1"]
-  in call nOpts rng 
+  in call (url,nOpts) rng 
 
-call :: Options -> Range -> IO (GithubResponse,Options,Interaction)
-call opts rng = do
+call :: (URL,Options) -> Range -> IO (GithubResponse,Options,Interaction)
+call (url,opts) rng = do
   let q = (M.fromList $ opts ^. params) M.! "q"
       rx = mkRegex "([0-9]{4}-[0-9]{2}-[0-9]{2}\\.\\.[0-9]{4}-[0-9]{2}-[0-9]{2})"
       q2 = pack $ subRegex rx (unpack q) (show rng)
       nOpts = opts & param "q" .~ [q2]
-  resp <- try $ asJSON =<< getWith opts githubUrl
+      nurl = subRegex rx url (show rng)
+  resp <- try $ asJSON =<< getWith nOpts nurl
   case resp of
      Right result -> do
        let i = Interaction (parseInt $ decodeUtf8 $ result ^. responseHeader "X-RateLimit-Limit") (parseInt $ decodeUtf8 $ result ^. responseHeader "X-RateLimit-Remaining") (parseInteger $ decodeUtf8 $ result ^. responseHeader "X-RateLimit-Reset")
@@ -108,33 +112,39 @@ call opts rng = do
   
 getUsersByRange :: Settings -> Range -> IO [User]
 getUsersByRange settings rng =
-  let opts = setOpts settings
+  let (url,opts) = setOpts settings
       nOpts = opts & param "per_page" .~ ["100"] 
   in do
-      (cpu,_,_) <- callPages [] 1 nOpts rng
+      (cpu,_,_) <- callPages [] 1 (url,nOpts) rng
       return cpu
 
-callPages :: [User] -> Int -> Options -> Range -> IO ([User], Options, Interaction)
-callPages us n opts rng =
+callPages :: [User] -> Int -> (URL,Options) -> Range -> IO ([User], Options, Interaction)
+callPages us n (url,opts) rng =
   if length us < 10
   then do
     let newOpts = opts & param "page" .~ [pack . show $ n]
-    (ghr, opts2, i) <- call newOpts rng
+    (ghr, opts2, i) <- call (url,newOpts) rng
     threadDelay 2000000
     _ <- return $! ""
-    callPages (us ++ items ghr) (n+1)  opts2 rng
+    callPages (us ++ items ghr) (n+1)  (url,opts2) rng
   else do
     let newOpts = opts & param "page" .~ [pack . show $ n]
-    (ghr, opts2, i) <- call newOpts rng
+    (ghr, opts2, i) <- call (url,newOpts) rng
     threadDelay 2000000
     return (us ++ items ghr, opts2, i)
   
   
 
-setOpts :: Settings -> Options
+setOpts :: Settings -> (URL,Options)
 setOpts settings = 
-  defaults & header "Authorization" .~ ["token " <> (encodeUtf8 $ token settings)]
-           & header "User-Agent" .~ [encodeUtf8 $ ua settings]
-           & param "q" .~ [ "location:" <> (location settings)
-                       <> "+type:user+created:2016-01-01..2017-01-01"]
-           & param "sort" .~ ["created"]
+  let opts = defaults & manager .~ Left (tlsManagerSettings { managerResponseTimeout = responseTimeoutMicro 100000000 } )
+             & auth ?~ oauth2Token (encodeUtf8 $ token settings)
+             & header "User-Agent" .~ [encodeUtf8 $ ua settings]
+             & header "Accept" .~ [encodeUtf8 $ constHeader settings]
+             & param "q" .~ [ "location%3A" <> (location settings)
+                            <> "+type%3Auser+created%3A2016-01-01..2017-01-01"]
+             & param "sort" .~ ["created"]
+      url = githubUrl -- <> (unpack $ "?q=location:" <> (location settings) <> "+type:user+created:2016-01-01..2017-01-01")
+ in (url,opts)
+
+invokeCurl = undefined

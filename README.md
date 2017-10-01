@@ -107,3 +107,8 @@ X-RateLimit-Reset: Y
 many calls: before each new call calculate thread delay: 
 if X-RateLimit is equal to 30 then 60 sec / 30 = 2 sec.
 if X-RateLimit-Remaining: >0 then iterate over rest requests. Otherwise, calculate delay based on X-RateLimit-Reset and wait till limit reset.
+
+Prerequisites
+=============
+
+Due to https://github.com/snoyberg/http-client/issues/302 timeout cannot be properly handled with wreq and all other clients based on `http-client`. In this particular case we will try to change client from `wreq` to `curl` itself.
