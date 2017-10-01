@@ -33,13 +33,13 @@ printUsers u = mapM_ printUser u
 execute :: Settings -> Command -> IO ()
 execute settings "ALL" = do
   ranges <- getAllRanges settings
-  users <- getAllUsers settings ranges
-  printUsers users
+  users <- mapM (getUsersByRange settings) ranges
+  printUsers $ concat users
 execute settings range =
   case validate range of
     (VALID,vrange) -> do
-      gr <- getGithubResponseFromRange settings vrange
-      printUsers $ items gr 
+      gr <- getUsersByRange settings vrange
+      printUsers gr 
     (INVALID,_)    -> showUsage
 
 validate :: Command -> (Validation,Range)

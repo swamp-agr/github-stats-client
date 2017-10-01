@@ -105,6 +105,10 @@ defRange =
 defDay :: UTCTime
 defDay = toDate 2006 1 1
 
+dayToDate :: Day -> UTCTime
+dayToDate x = UTCTime x (secondsToDiffTime 0)
+
+
 defaultResponse :: GithubResponse
 defaultResponse = GithubResponse 0 False []
 

@@ -4,6 +4,7 @@ import Control.Exception
 import Data.ByteString (ByteString(..))
 import Data.Monoid
 import Data.Time.Clock
+import Data.Time.Calendar
 import Network.Wreq
 
 import Types
@@ -40,8 +41,19 @@ getWholeRange :: UTCTime -> Range
 getWholeRange t = Range defDay t
 
 splitRangeBy :: Integer -> Range -> [Range]
-splitRangeBy t rng = undefined
+splitRangeBy t (Range start end) =
+  let startDay = utctDay start
+      endDay   = utctDay end
+      days     = diffDays endDay startDay
+      toRangeProto val ix = (ix * val, (ix + 1) * val - 1)
+      ixs = div days t
+      protoList :: [(Integer, Integer)]
+      protoList = fmap (toRangeProto t) [0..ixs]
+      shiftRange :: Day -> (Integer,Integer) -> Range
+      shiftRange s (x,y) = Range (dayToDate $ addDays x s) (dayToDate $ addDays y s)
+  in fmap (shiftRange startDay) protoList
 
+-- | iteratively make a API call for list of various inputs to produce the list of responses with HTTP interacting logic.
 callRepeatedly :: (a -> IO b) -> [a] -> IO [b]
 callRepeatedly f x = undefined
 
@@ -50,11 +62,6 @@ spanRanges x = (fmap fst $ filter ((<= 1000) . snd) x, fmap fst $ filter (not . 
 
 showWarning :: [Range] -> String
 showWarning x = unlines . fmap ((<> " period had a massive users' load!") . show) $ x
-
-getAllUsersCount :: Options -> IO Int  
-getAllUsersCount opts = do
-  (rs,_) <- getCountRequest opts defRange
-  return $ totalCount rs
 
 getUsersCountByRange :: Options -> Range -> IO (Range, Int)
 getUsersCountByRange opts rng = do
@@ -66,29 +73,8 @@ getUsersCountByRange opts rng = do
 getCountRequest :: Options -> Range -> IO (GithubResponse,Options)
 getCountRequest = undefined
 
-
-getGithubResponseFromRange :: Settings -> Range -> IO GithubResponse
-getGithubResponseFromRange settings range = do
-  let opts = setOpts settings
-  resp <- try $ call opts range
-  case resp of
-    Right result -> return $ decodeGithubResponse result
-    Left err@(SomeException _)     -> return defaultResponse
-
-getAllUsers :: Settings -> [Range] -> IO [User]
-getAllUsers settings ranges = do
-  let opts = setOpts settings
-  rs <- callMany opts ranges
-  return $ concat $ fmap fromEither rs
-
-call :: Options -> Range -> IO ByteString
-call opts range = undefined
-
-callMany :: Options -> [Range] -> IO [APIResponse]
-callMany opts ranges = undefined
-
-decodeGithubResponse :: ByteString -> GithubResponse
-decodeGithubResponse resp = undefined
+getUsersByRange :: Settings -> Range -> IO [User]
+getUsersByRange settings rng = undefined
 
 setOpts :: Settings -> Options
 setOpts settings = undefined
