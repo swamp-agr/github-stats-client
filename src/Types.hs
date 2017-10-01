@@ -5,6 +5,8 @@ module Types where
 
 import Control.Exception
 import Data.Text
+import Data.Time.Clock
+import Data.Time.Calendar
 import Data.Yaml
 import Data.ByteString (ByteString(..), readFile)
 import GHC.Generics
@@ -65,7 +67,11 @@ instance FromJSON User where
     score             <- o .: "score"
     return User {..}
 
-data Range
+data Range = 
+  Range
+    { startDate :: UTCTime
+    , endTIme :: UTCTime
+    }
 data APICall
 
 type APIResponse = Either ErrorMessage GithubResponse
@@ -80,10 +86,16 @@ data GithubResponse =
 type ErrorMessage = ByteString
 
 defRange :: Range
-defRange = undefined
+defRange = 
+  Range 
+    (UTCTime (fromGregorian 2006 1 1) (secondsToDiffTime 0)) 
+    (UTCTime (fromGregorian 2017 12 12) (secondsToDiffTime 0)) 
 
 firstRange :: Range
-firstRange = undefined
+firstRange = 
+  Range
+    (UTCTime (fromGregorian 2006 1 1) (secondsToDiffTime 0)) 
+    (UTCTime (fromGregorian 2007 1 1) (secondsToDiffTime 0)) 
 
 defaultResponse :: GithubResponse
 defaultResponse = undefined
