@@ -14,7 +14,7 @@ getAllRanges settings = do
   let opts = setOpts settings
   -- get all users amount
   today <- getCurrentTime
-  let wholeRange  = getWholeRange defDay today
+  let wholeRange  = getWholeRange today
       allYearRanges  = splitRangeBy 365 wholeRange
 
   countByYear <- callRepeatedly (getUsersCountByRange opts) allYearRanges
@@ -36,8 +36,8 @@ getAllRanges settings = do
 
   return $ yearRanges ++ monthRanges ++ weekRanges ++ dayRanges
 
-getWholeRange :: UTCTime -> UTCTime -> Range
-getWholeRange = undefined
+getWholeRange :: UTCTime -> Range
+getWholeRange t = Range defDay t
 
 splitRangeBy :: Integer -> Range -> [Range]
 splitRangeBy t rng = undefined
@@ -49,7 +49,7 @@ spanRanges :: [(Range, Int)] -> ([Range], [Range])
 spanRanges x = (fmap fst $ filter ((<= 1000) . snd) x, fmap fst $ filter (not . (<= 1000) . snd) x)
 
 showWarning :: [Range] -> String
-showWarning x = undefined
+showWarning x = unlines . fmap ((<> " period had a massive users' load!") . show) $ x
 
 getAllUsersCount :: Options -> IO Int  
 getAllUsersCount opts = do

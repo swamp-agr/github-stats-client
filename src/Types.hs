@@ -23,7 +23,7 @@ instance FromJSON Settings
 
 type Command = String
 
-data Validation = VALID | INVALID
+data Validation = VALID | INVALID deriving Show
 data User =
   User
     { login :: Text
@@ -100,7 +100,7 @@ type ErrorMessage = ByteString
 
 defRange :: Range
 defRange = 
-  Range defDay (toDate 20017 12 12)
+  Range defDay defDay
 
 defDay :: UTCTime
 defDay = toDate 2006 1 1
