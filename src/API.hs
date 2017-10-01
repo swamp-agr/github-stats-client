@@ -12,9 +12,10 @@ import Data.Time.Calendar
 import Network.Wreq
 import Text.Regex
 import Data.Text (pack, unpack)
-import Data.Text.Encoding (encodeUtf8)
+import Data.Text.Encoding (encodeUtf8, decodeUtf8)
 
 import Types
+import Utils
 
 -- | First goal. Calculate all possible ranges based on total user amounts. 
 getAllRanges :: Settings -> IO [Range]
@@ -72,17 +73,17 @@ showWarning x = unlines . fmap ((<> " period had a massive users' load!") . show
 
 getUsersCountByRange :: Options -> Range -> IO (Range, Int)
 getUsersCountByRange opts rng = do
-  (rs,_) <- getCountRequest opts rng
+  (rs,_,_) <- getCountRequest opts rng
   let tc = totalCount rs
   putStrLn $ "For Range " <> (show rng) <> " created: " <> (show tc) <> " users!"
   return (rng, tc)
 
-getCountRequest :: Options -> Range -> IO (GithubResponse,Options)
+getCountRequest :: Options -> Range -> IO (GithubResponse,Options,Interaction)
 getCountRequest opts rng =
   let nOpts = opts & param "per_page" .~ ["1"] & param "page" .~ ["1"]
   in call nOpts rng 
 
-call :: Options -> Range -> IO (GithubResponse,Options)
+call :: Options -> Range -> IO (GithubResponse,Options,Interaction)
 call opts rng = do
   let q = (M.fromList $ opts ^. params) M.! "q"
       rx = mkRegex "([0-9]{4}-[0-9]{2}-[0-9]{2}\\.\\.[0-9]{4}-[0-9]{2}-[0-9]{2})"
@@ -90,13 +91,34 @@ call opts rng = do
       nOpts = opts & param "q" .~ [q2]
   resp <- try $ asJSON =<< getWith opts githubUrl
   case resp of
-     Right result -> return (result ^. responseBody, nOpts)
+     Right result -> do
+       let i = Interaction (parseInt $ decodeUtf8 $ result ^. responseHeader "X-RateLimit-Limit") (parseInt $ decodeUtf8 $ result ^. responseHeader "X-RateLimit-Remaining") (parseInteger $ decodeUtf8 $ result ^. responseHeader "X-RateLimit-Reset")
+       return (result ^. responseBody, nOpts, i)
      Left (SomeException _) -> do
        putStrLn $ "ERROR for " <> (show rng)
-       return (defaultResponse, nOpts)
+       return (defaultResponse, nOpts,di)
   
 getUsersByRange :: Settings -> Range -> IO [User]
-getUsersByRange settings rng = undefined
+getUsersByRange settings rng =
+  let opts = setOpts settings
+      nOpts = opts & param "per_page" .~ ["100"] 
+  in do
+      (cpu,_,_) <- callPages [] 1 nOpts rng
+      return cpu
+
+callPages :: [User] -> Int -> Options -> Range -> IO ([User], Options, Interaction)
+callPages us n opts rng =
+  if length us < 10
+  then do
+    let newOpts = opts & param "page" .~ [pack . show $ n]
+    (ghr, opts2, i) <- call newOpts rng
+    callPages (us ++ items ghr) (n+1)  opts2 rng
+  else do
+    let newOpts = opts & param "page" .~ [pack . show $ n]
+    (ghr, opts2, i) <- call newOpts rng
+    return (us ++ items ghr, opts2, i)
+  
+  
 
 setOpts :: Settings -> Options
 setOpts settings = 

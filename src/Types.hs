@@ -124,3 +124,12 @@ type Days = Integer
 
 githubUrl :: String
 githubUrl = "https://api.github.com/search/users"
+
+data Interaction =
+  Interaction
+    { limit :: Int
+    , remaining :: Int
+    , epoch :: Integer
+    }
+
+di = Interaction 30 0 (toInteger 0)

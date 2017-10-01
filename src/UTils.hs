@@ -27,6 +27,9 @@ isInt = not . null. ignoreChars
 toInt :: String -> Int
 toInt a = read a :: Int
 
+toInteger_ :: String -> Integer
+toInteger_ a = read a :: Integer
+
 ignoreChars :: T.Text -> String
 ignoreChars = filter isDigit . T.unpack
 
@@ -35,6 +38,9 @@ parseDefInt x def = if isInt x then parseInt x else def
 
 parseInt :: T.Text -> Int
 parseInt = toInt . ignoreChars
+
+parseInteger :: T.Text -> Integer
+parseInteger = toInteger_ . ignoreChars
 
 parseDate def x = ymdToDate def . fmap (flip parseDefInt 0) . triple . T.pack $ x
   where triple = T.splitOn "-"
