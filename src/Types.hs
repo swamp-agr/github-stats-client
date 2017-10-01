@@ -83,19 +83,24 @@ data GithubResponse =
     , items :: [User]
     }
 
+instance FromJSON GithubResponse where 
+  parseJSON = withObject "GithubResponse" $ \o -> do
+    totalCount        <- o .: "total_count"
+    incompleteResults <- o .: "incomplete_results"
+    items             <- o .: "items"
+    return GithubResponse {..}
+
 type ErrorMessage = ByteString
 
 defRange :: Range
 defRange = 
-  Range 
-    (UTCTime (fromGregorian 2006 1 1) (secondsToDiffTime 0)) 
-    (UTCTime (fromGregorian 2017 12 12) (secondsToDiffTime 0)) 
+  Range (toTime 2006 1 1) (toTime 20017 12 12)
 
 firstRange :: Range
 firstRange = 
-  Range
-    (UTCTime (fromGregorian 2006 1 1) (secondsToDiffTime 0)) 
-    (UTCTime (fromGregorian 2007 1 1) (secondsToDiffTime 0)) 
+  Range (toTime 2006 1 1) (toTime 2007 1 1)
 
 defaultResponse :: GithubResponse
 defaultResponse = undefined
+
+toTime y m d = UTCTime (fromGregorian y m d) (secondsToDiffTime 0)
