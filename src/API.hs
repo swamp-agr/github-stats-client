@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module API where
 
+import Control.Concurrent (threadDelay)
 import Control.Exception
 import Control.Lens
 import Data.Aeson
@@ -26,19 +27,19 @@ getAllRanges settings = do
   let wholeRange  = getWholeRange today
       allYearRanges  = splitRangeBy 365 wholeRange
 
-  countByYear <- callRepeatedly (getUsersCountByRange opts) allYearRanges
+  countByYear <- callRepeatedly [] opts allYearRanges
   let (yearRanges, tbdYearRanges) = spanRanges countByYear
       allMonthRanges = concat $ fmap (splitRangeBy 30) tbdYearRanges
 
-  countByMonth <- callRepeatedly (getUsersCountByRange opts) allMonthRanges
+  countByMonth <- callRepeatedly [] opts allMonthRanges
   let (monthRanges, tbdMRanges) = spanRanges countByMonth
       allWeekRanges = concat $ fmap (splitRangeBy 7) tbdMRanges
 
-  countByWeek <- callRepeatedly (getUsersCountByRange opts) allWeekRanges
+  countByWeek <- callRepeatedly [] opts allWeekRanges
   let (weekRanges, tbdWRanges) = spanRanges countByWeek
       allDayRanges = concat $ fmap (splitRangeBy 1) tbdWRanges
 
-  countByDay <- callRepeatedly (getUsersCountByRange opts) allDayRanges
+  countByDay <- callRepeatedly [] opts allDayRanges
   let (dayRanges, tbdDRanges) = spanRanges countByDay
 
   putStrLn $ showWarning tbdDRanges
@@ -62,8 +63,15 @@ splitRangeBy t (Range start end) =
   in fmap (shiftRange startDay) protoList
 
 -- | iteratively make a API call for list of various inputs to produce the list of responses with HTTP interacting logic.
-callRepeatedly :: (a -> IO b) -> [a] -> IO [b]
-callRepeatedly f x = undefined
+callRepeatedly :: [(Range,Int)] -> Options -> [Range] -> IO [(Range,Int)]
+callRepeatedly rs opts [] = return $! rs
+callRepeatedly rs opts xs = do
+  (rng,opts2,i) <- getUsersCountByRange opts (head xs)
+  _ <- return $! ""
+  callRepeatedly (rng : rs) opts2 $! tail xs
+  
+  
+  
 
 spanRanges :: [(Range, Int)] -> ([Range], [Range])
 spanRanges x = (fmap fst $ filter ((<= 1000) . snd) x, fmap fst $ filter (not . (<= 1000) . snd) x)
@@ -71,12 +79,12 @@ spanRanges x = (fmap fst $ filter ((<= 1000) . snd) x, fmap fst $ filter (not . 
 showWarning :: [Range] -> String
 showWarning x = unlines . fmap ((<> " period had a massive users' load!") . show) $ x
 
-getUsersCountByRange :: Options -> Range -> IO (Range, Int)
+getUsersCountByRange :: Options -> Range -> IO ((Range, Int),Options,Interaction)
 getUsersCountByRange opts rng = do
-  (rs,_,_) <- getCountRequest opts rng
+  (rs,opts2,i) <- getCountRequest opts rng
   let tc = totalCount rs
   putStrLn $ "For Range " <> (show rng) <> " created: " <> (show tc) <> " users!"
-  return (rng, tc)
+  return ((rng, tc),opts2,i)
 
 getCountRequest :: Options -> Range -> IO (GithubResponse,Options,Interaction)
 getCountRequest opts rng =
@@ -112,10 +120,13 @@ callPages us n opts rng =
   then do
     let newOpts = opts & param "page" .~ [pack . show $ n]
     (ghr, opts2, i) <- call newOpts rng
+    threadDelay 2000000
+    _ <- return $! ""
     callPages (us ++ items ghr) (n+1)  opts2 rng
   else do
     let newOpts = opts & param "page" .~ [pack . show $ n]
     (ghr, opts2, i) <- call newOpts rng
+    threadDelay 2000000
     return (us ++ items ghr, opts2, i)
   
   
