@@ -5,6 +5,7 @@ module Utils where
 import qualified Data.Text as T
 import Data.Char
 import Data.Time.Clock
+import qualified Data.ByteString.Lazy.Char8 as C
 
 import Types
 
@@ -59,3 +60,6 @@ ymdToDate def x =
        then toDate (toInteger $ x !! 0) (x !! 1) (x !! 2)
        else def
   else def
+
+s2lbs = C.pack
+lbs2s = C.unpack

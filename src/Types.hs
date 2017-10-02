@@ -135,3 +135,13 @@ data Interaction =
     }
 
 di = Interaction 30 0 (toInteger 0)
+
+data CurlOptions = 
+  CurlOptions
+    { cHeader :: [(CurlHeader,CurlHeader)]
+    , cParam :: [(CurlParam, CurlParam)]
+    , cUrl :: URL
+    }
+
+type CurlHeader = String
+type CurlParam = String

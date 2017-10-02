@@ -17,6 +17,7 @@ import Data.Text.Encoding (encodeUtf8, decodeUtf8)
 import OpenSSL.Session (context)
 import Network.HTTP.Client.TLS
 import Network.HTTP.Client (defaultManagerSettings, managerResponseTimeout, responseTimeoutMicro)
+import System.Process
 
 import Types
 import Utils
@@ -24,7 +25,7 @@ import Utils
 -- | First goal. Calculate all possible ranges based on total user amounts. 
 getAllRanges :: Settings -> IO [Range]
 getAllRanges settings = do
-  let opts = setOpts settings
+  let opts = setWreqOpts settings
   -- get all users amount
   today <- getCurrentTime
   let wholeRange  = getWholeRange today
@@ -65,7 +66,7 @@ splitRangeBy t (Range start end) =
       shiftRange s (x,y) = Range (dayToDate $ addDays x s) (dayToDate $ addDays y s)
   in fmap (shiftRange startDay) protoList
 
--- | iteratively make a API call for list of various inputs to produce the list of responses with HTTP interacting logic.
+-- | iteratively make a API callWreq for list of various inputs to produce the list of responses with HTTP interacting logic.
 callRepeatedly :: [(Range,Int)] -> (URL,Options) -> [Range] -> IO [(Range,Int)]
 callRepeatedly rs (url,opts) [] = return $! rs
 callRepeatedly rs (url,opts) xs = do
@@ -92,10 +93,10 @@ getUsersCountByRange (url,opts) rng = do
 getCountRequest :: (URL,Options) -> Range -> IO (GithubResponse,Options,Interaction)
 getCountRequest (url,opts) rng =
   let nOpts = opts & param "per_page" .~ ["1"] & param "page" .~ ["1"]
-  in call (url,nOpts) rng 
+  in callWreq (url,nOpts) rng 
 
-call :: (URL,Options) -> Range -> IO (GithubResponse,Options,Interaction)
-call (url,opts) rng = do
+callWreq :: (URL,Options) -> Range -> IO (GithubResponse,Options,Interaction)
+callWreq (url,opts) rng = do
   let q = (M.fromList $ opts ^. params) M.! "q"
       rx = mkRegex "([0-9]{4}-[0-9]{2}-[0-9]{2}\\.\\.[0-9]{4}-[0-9]{2}-[0-9]{2})"
       q2 = pack $ subRegex rx (unpack q) (show rng)
@@ -109,10 +110,27 @@ call (url,opts) rng = do
      Left (SomeException _) -> do
        putStrLn $ "ERROR for " <> (show rng)
        return (defaultResponse, nOpts,di)
-  
+
+callCurl :: CurlOptions -> Range -> IO (GithubResponse,CurlOptions,Interaction)
+callCurl copts rng = do
+  let q  = (M.fromList $ cParam copts) M.! "q"
+      rx = mkRegex "([0-9]{4}-[0-9]{2}-[0-9]{2}\\.\\.[0-9]{4}-[0-9]{2}-[0-9]{2})"
+      q2 = subRegex rx q (show rng)
+      f y x = if (x == "q") then (Just y) else Nothing
+      cnopts = copts { cParam = (M.toList . (M.update (f q2) "q") . M.fromList . cParam $ copts) }
+      cmd = getCmdString cnopts
+  fullResp <- readProcess "curl" cmd []
+  let (respHeaders,respBody) = span (/= '{') fullResp
+      res = decode $ s2lbs respBody
+      (opts2,i) = parseRespHeaders respHeaders
+  case res of
+    Just decResult -> return (decResult,opts2,i)
+    Nothing -> return (defaultResponse, opts2, i)
+   
+
 getUsersByRange :: Settings -> Range -> IO [User]
 getUsersByRange settings rng =
-  let (url,opts) = setOpts settings
+  let (url,opts) = setWreqOpts settings
       nOpts = opts & param "per_page" .~ ["100"] 
   in do
       (cpu,_,_) <- callPages [] 1 (url,nOpts) rng
@@ -123,20 +141,20 @@ callPages us n (url,opts) rng =
   if length us < 10
   then do
     let newOpts = opts & param "page" .~ [pack . show $ n]
-    (ghr, opts2, i) <- call (url,newOpts) rng
+    (ghr, opts2, i) <- callWreq (url,newOpts) rng
     threadDelay 2000000
     _ <- return $! ""
     callPages (us ++ items ghr) (n+1)  (url,opts2) rng
   else do
     let newOpts = opts & param "page" .~ [pack . show $ n]
-    (ghr, opts2, i) <- call (url,newOpts) rng
+    (ghr, opts2, i) <- callWreq (url,newOpts) rng
     threadDelay 2000000
     return (us ++ items ghr, opts2, i)
   
   
 
-setOpts :: Settings -> (URL,Options)
-setOpts settings = 
+setWreqOpts :: Settings -> (URL,Options)
+setWreqOpts settings = 
   let opts = defaults & manager .~ Left (tlsManagerSettings { managerResponseTimeout = responseTimeoutMicro 100000000 } )
              & auth ?~ oauth2Token (encodeUtf8 $ token settings)
              & header "User-Agent" .~ [encodeUtf8 $ ua settings]
@@ -147,4 +165,9 @@ setOpts settings =
       url = githubUrl -- <> (unpack $ "?q=location:" <> (location settings) <> "+type:user+created:2016-01-01..2017-01-01")
  in (url,opts)
 
-invokeCurl = undefined
+setCurlOpts :: Settings -> CurlOptions
+setCurlOpts = undefined
+
+parseRespHeaders = undefined
+
+getCmdString = undefined
