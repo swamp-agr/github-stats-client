@@ -18,7 +18,8 @@ data Settings =
     , token :: Text
     , ua :: Text
     , constHeader :: Text
-    } deriving Generic
+    } deriving (Show, Generic)
+
 instance FromJSON Settings where
   parseJSON = withObject "Settings" $ \o -> do
     location <- o .: "location"
@@ -93,7 +94,7 @@ data GithubResponse =
     { totalCount :: Int
     , incompleteResults :: Bool
     , items :: [User]
-    }
+    } deriving Show
 
 instance FromJSON GithubResponse where 
   parseJSON = withObject "GithubResponse" $ \o -> do
@@ -141,7 +142,7 @@ data CurlOptions =
     { cHeader :: [(CurlHeader,CurlHeader)]
     , cParam :: [(CurlParam, CurlParam)]
     , cUrl :: URL
-    }
+    } deriving Show
 
 type CurlHeader = String
 type CurlParam = String

@@ -7,6 +7,7 @@ import Control.Lens
 import Data.Aeson
 import Data.ByteString (ByteString(..))
 import qualified Data.Map.Strict as M
+import Data.List (intersperse)
 import Data.Monoid
 import Data.Time.Clock
 import Data.Time.Calendar
@@ -25,7 +26,7 @@ import Utils
 -- | First goal. Calculate all possible ranges based on total user amounts. 
 getAllRanges :: Settings -> IO [Range]
 getAllRanges settings = do
-  let opts = setWreqOpts settings
+  let opts = setCurlOpts settings
   -- get all users amount
   today <- getCurrentTime
   let wholeRange  = getWholeRange today
@@ -66,13 +67,13 @@ splitRangeBy t (Range start end) =
       shiftRange s (x,y) = Range (dayToDate $ addDays x s) (dayToDate $ addDays y s)
   in fmap (shiftRange startDay) protoList
 
--- | iteratively make a API callWreq for list of various inputs to produce the list of responses with HTTP interacting logic.
-callRepeatedly :: [(Range,Int)] -> (URL,Options) -> [Range] -> IO [(Range,Int)]
-callRepeatedly rs (url,opts) [] = return $! rs
-callRepeatedly rs (url,opts) xs = do
-  (rng,opts2,i) <- getUsersCountByRange (url,opts) (head xs)
+-- | iteratively make a API callCurl (since wreq has an issue with timeout) for list of various inputs to produce the list of responses with HTTP interacting logic.
+callRepeatedly :: [(Range,Int)] -> CurlOptions -> [Range] -> IO [(Range,Int)]
+callRepeatedly rs copts [] = return $! rs
+callRepeatedly rs copts xs = do
+  (rng,opts2,i) <- getUsersCountByRange copts (head xs)
   _ <- return $! ""
-  callRepeatedly (rng : rs) (url,opts2) $! tail xs
+  callRepeatedly (rng : rs) opts2 $! tail xs
   
   
   
@@ -83,17 +84,17 @@ spanRanges x = (fmap fst $ filter ((<= 1000) . snd) x, fmap fst $ filter (not . 
 showWarning :: [Range] -> String
 showWarning x = unlines . fmap ((<> " period had a massive users' load!") . show) $ x
 
-getUsersCountByRange :: (URL,Options) -> Range -> IO ((Range, Int),Options,Interaction)
-getUsersCountByRange (url,opts) rng = do
-  (rs,opts2,i) <- getCountRequest (url,opts) rng
+getUsersCountByRange :: CurlOptions -> Range -> IO ((Range, Int),CurlOptions,Interaction)
+getUsersCountByRange opts rng = do
+  (rs,opts2,i) <- getCountRequest opts rng
   let tc = totalCount rs
   putStrLn $ "For Range " <> (show rng) <> " created: " <> (show tc) <> " users!"
   return ((rng, tc),opts2,i)
 
-getCountRequest :: (URL,Options) -> Range -> IO (GithubResponse,Options,Interaction)
-getCountRequest (url,opts) rng =
-  let nOpts = opts & param "per_page" .~ ["1"] & param "page" .~ ["1"]
-  in callWreq (url,nOpts) rng 
+getCountRequest :: CurlOptions -> Range -> IO (GithubResponse,CurlOptions,Interaction)
+getCountRequest opts rng =
+  let nOpts = addParam ("per_page","1") $ addParam ("page","1") opts
+  in callCurl nOpts rng 
 
 callWreq :: (URL,Options) -> Range -> IO (GithubResponse,Options,Interaction)
 callWreq (url,opts) rng = do
@@ -116,38 +117,37 @@ callCurl copts rng = do
   let q  = (M.fromList $ cParam copts) M.! "q"
       rx = mkRegex "([0-9]{4}-[0-9]{2}-[0-9]{2}\\.\\.[0-9]{4}-[0-9]{2}-[0-9]{2})"
       q2 = subRegex rx q (show rng)
-      f y x = if (x == "q") then (Just y) else Nothing
-      cnopts = copts { cParam = (M.toList . (M.update (f q2) "q") . M.fromList . cParam $ copts) }
+      f y x = y
+      cnopts = copts { cParam = (M.toList . (M.adjust (f q2) "q") . M.fromList . cParam $ copts) }
       cmd = getCmdString cnopts
   fullResp <- readProcess "curl" cmd []
   let (respHeaders,respBody) = span (/= '{') fullResp
       res = decode $ s2lbs respBody
-      (opts2,i) = parseRespHeaders respHeaders
   case res of
-    Just decResult -> return (decResult,opts2,i)
-    Nothing -> return (defaultResponse, opts2, i)
+    Just decResult -> return (decResult,copts,di)
+    Nothing -> return (defaultResponse, copts, di)
    
 
 getUsersByRange :: Settings -> Range -> IO [User]
 getUsersByRange settings rng =
-  let (url,opts) = setWreqOpts settings
-      nOpts = opts & param "per_page" .~ ["100"] 
+  let opts = setCurlOpts settings
+      nOpts = addParam ("per_page","100") opts
   in do
-      (cpu,_,_) <- callPages [] 1 (url,nOpts) rng
+      (cpu,_,_) <- callPages [] 1 nOpts rng
       return cpu
 
-callPages :: [User] -> Int -> (URL,Options) -> Range -> IO ([User], Options, Interaction)
-callPages us n (url,opts) rng =
+callPages :: [User] -> Int -> CurlOptions -> Range -> IO ([User], CurlOptions, Interaction)
+callPages us n opts rng =
   if length us < 10
   then do
-    let newOpts = opts & param "page" .~ [pack . show $ n]
-    (ghr, opts2, i) <- callWreq (url,newOpts) rng
+    let newOpts = updateParam "page" (show n) opts
+    (ghr, opts2, i) <- callCurl newOpts rng
     threadDelay 2000000
     _ <- return $! ""
-    callPages (us ++ items ghr) (n+1)  (url,opts2) rng
+    callPages (us ++ items ghr) (n+1) opts2 rng
   else do
-    let newOpts = opts & param "page" .~ [pack . show $ n]
-    (ghr, opts2, i) <- callWreq (url,newOpts) rng
+    let newOpts = updateParam "page" (show n) opts
+    (ghr, opts2, i) <- callCurl newOpts rng
     threadDelay 2000000
     return (us ++ items ghr, opts2, i)
   
@@ -166,8 +166,27 @@ setWreqOpts settings =
  in (url,opts)
 
 setCurlOpts :: Settings -> CurlOptions
-setCurlOpts = undefined
+setCurlOpts (Settings l t ua ch) =
+  CurlOptions
+    { cHeader = [ ("User-Agent", unpack ua)
+                , ("Accept", unpack ch)
+                , ("Authorization", "token " <> unpack t)
+                ]
+    , cParam  = [ ("q", "location:" <> (unpack l) <> "+type:user+created:2006-01-01..2007-01-01")
+                , ("sort", "created")
+                ]
+    , cUrl = githubUrl
+    }
 
-parseRespHeaders = undefined
 
-getCmdString = undefined
+addParam param opts = opts { cParam = (param : cParam opts ) }
+updateParam paramName newValue opts = opts { cParam = M.toList . (M.adjust (f newValue) paramName) . M.fromList . cParam $ opts }
+  where f y x = y
+
+getCmdString :: CurlOptions -> [String]
+getCmdString (CurlOptions ch cp cu) = 
+  let getHeader (x,y) = x <> ": " <> y
+      getParam (x,y)  = x <> "=" <> y
+
+      getFullUrl url ps = url <> "?" <> (concat $ intersperse "&" ps)
+  in ("-H" : (intersperse "-H" $ fmap (getHeader) ch)) ++ ("-i" : (getFullUrl cu (fmap getParam cp)) : [])
