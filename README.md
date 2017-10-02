@@ -112,3 +112,16 @@ Prerequisites
 =============
 
 Due to https://github.com/snoyberg/http-client/issues/302 timeout cannot be properly handled with wreq and all other clients based on `http-client`. In this particular case we will try to change client from `wreq` to `curl` itself.
+
+1. Obtain Authorization Token OAuth2 for Github with `Users` permission.
+2. Fill `token` value in `sample.yml` file with obtained token.
+3. Change `location` to your value.
+4. `stack` utility installed.
+
+Installation
+============
+
+```
+stack build
+```
+
