@@ -49,4 +49,3 @@ validate cmd =
     Just  x -> toRange x
   where rx = mkRegex "^([0-9]{4}-[0-9]{2}-[0-9]{2})\\.\\.([0-9]{4}-[0-9]{2}-[0-9]{2}$)"
         ms = matchRegex rx cmd
-

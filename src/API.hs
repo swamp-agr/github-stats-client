@@ -33,19 +33,19 @@ getAllRanges settings = do
       allYearRanges  = splitRangeBy 365 wholeRange
 
   countByYear <- callRepeatedly [] opts allYearRanges
-  let (yearRanges, tbdYearRanges) = spanRanges countByYear
+  let (yearRanges, tbdYearRanges) = spanRanges $ filter ((/= 0) . snd) countByYear
       allMonthRanges = concat $ fmap (splitRangeBy 30) tbdYearRanges
 
   countByMonth <- callRepeatedly [] opts allMonthRanges
-  let (monthRanges, tbdMRanges) = spanRanges countByMonth
+  let (monthRanges, tbdMRanges) = spanRanges $ filter ((/= 0) . snd)  countByMonth
       allWeekRanges = concat $ fmap (splitRangeBy 7) tbdMRanges
 
   countByWeek <- callRepeatedly [] opts allWeekRanges
-  let (weekRanges, tbdWRanges) = spanRanges countByWeek
+  let (weekRanges, tbdWRanges) = spanRanges $ filter ((/= 0) . snd)  countByWeek
       allDayRanges = concat $ fmap (splitRangeBy 1) tbdWRanges
 
   countByDay <- callRepeatedly [] opts allDayRanges
-  let (dayRanges, tbdDRanges) = spanRanges countByDay
+  let (dayRanges, tbdDRanges) = spanRanges $ filter ((/= 0) . snd) countByDay
 
   putStrLn $ showWarning tbdDRanges
 
