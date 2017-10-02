@@ -4,8 +4,9 @@
 module Types where
 
 import Control.Exception
+import Data.List (intercalate)
 import Data.Monoid
-import Data.Text
+import Data.Text hiding (intercalate)
 import Data.Time.Clock
 import Data.Time.Calendar
 import Data.Yaml
@@ -51,7 +52,11 @@ data User =
     , type_ :: Text
     , siteAdmin :: Bool
     , score :: Double
-    } deriving Show
+    }
+
+instance Show User where
+  show (User l uid a gra url h fer fig gist star subs o r e re t adm score) =
+    intercalate ";" $ fmap unpack [l, pack $ show uid, a, gra, url, h, fer, fig, gist, star, subs, o, r, e, re, t, pack $ show adm, pack $ show score]
 
 instance FromJSON User where
   parseJSON = withObject "User" $ \o -> do
